@@ -29,6 +29,8 @@ static SOS: u8 = 0xDA;
 static DQT: u8 = 0xDB;
 // Application segments start and end
 static APP0: u8 = 0xE0;
+// Exif Marker
+static APP1: u8 = 0xE1;
 
 // section K.1
 // table K.1
@@ -486,6 +488,17 @@ impl<'a, W: Write> JPEGEncoder<'a, W> {
         &mut self,
         image: &I,
     ) -> ImageResult<()> {
+        self.encode_image_with_exif(image, None)
+    }
+
+    /// Encodes the given image with exif data.
+    ///
+    /// Same as encode image, but allows exif data to be included
+    pub fn encode_image_with_exif<I: GenericImageView>(
+        &mut self,
+        image: &I,
+        exif: Option<&[u8]>
+    ) -> ImageResult<()> {
         let n = I::Pixel::CHANNEL_COUNT;
         let num_components = if n == 1 || n == 2 { 1 } else { 3 };
 
@@ -495,6 +508,9 @@ impl<'a, W: Write> JPEGEncoder<'a, W> {
 
         build_jfif_header(&mut buf, self.pixel_density);
         self.writer.write_segment(APP0, Some(&buf))?;
+        if let Some(data) = exif {
+            self.writer.write_segment(APP1, Some(&data))?;
+        }
 
         build_frame_header(
             &mut buf,
